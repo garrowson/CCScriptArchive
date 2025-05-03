@@ -2,7 +2,7 @@
 
 local MultiblockCraftingAPI = {}
 
-MultiblockCraftingAPI.VERSION = "3.0"
+MultiblockCraftingAPI.VERSION = "3.1"
 
 -- ENUM FOR MULTIBLOCK TYPES
 ---@enum MultiblockType
@@ -72,7 +72,7 @@ function MultiblockCraftingAPI.detectMultiblockPeripherals()
 
   for _, name in ipairs(peripheral.getNames()) do
     ---@diagnostic disable param-type-mismatch
-    if peripheral.hasType(name, "create_mechanical_crafter") then
+    if peripheral.hasType(name, "create:mechanical_crafter") then
       table.insert(mechanicalCrafters, name)
     elseif peripheral.hasType(name, "ars_nouveau:arcane_pedestal") then
       table.insert(arcanePedestals, name)
