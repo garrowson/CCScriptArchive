@@ -2,6 +2,8 @@
 
 local MultiblockCraftingAPI = {}
 
+MultiblockCraftingAPI.VERSION = "3.0"
+
 -- ENUM FOR MULTIBLOCK TYPES
 ---@enum MultiblockType
 MultiblockCraftingAPI.MultiblockType = {
@@ -32,7 +34,7 @@ MultiblockRecipe.__index = MultiblockRecipe
 
 function MultiblockCraftingAPI.newRecipe()
   local self = setmetatable({}, MultiblockRecipe)
-  self.version = "1.0"
+  self.version = MultiblockCraftingAPI.VERSION
   self.peripherals = {}
   return self
 end
@@ -51,6 +53,7 @@ function MultiblockRecipe:loadFromDisk(filename)
   if not f then error("File not found") end
   local contents = f.readAll()
   f.close()
+  if not contents then error("File is empty") end
   local obj = textutils.unserialiseJSON(contents)
   if not obj then error("Failed to parse recipe file") end
   for k,v in pairs(obj) do
@@ -68,6 +71,7 @@ function MultiblockCraftingAPI.detectMultiblockPeripherals()
   local enchantingApparatus = nil
 
   for _, name in ipairs(peripheral.getNames()) do
+    ---@diagnostic disable param-type-mismatch
     if peripheral.hasType(name, "create_mechanical_crafter") then
       table.insert(mechanicalCrafters, name)
     elseif peripheral.hasType(name, "ars_nouveau:arcane_pedestal") then
@@ -75,6 +79,7 @@ function MultiblockCraftingAPI.detectMultiblockPeripherals()
     elseif peripheral.hasType(name, "ars_nouveau:enchanting_apparatus") then
       enchantingApparatus = name
     end
+    ---@diagnostic enable
   end
 
   return mechanicalCrafters, arcanePedestals, enchantingApparatus
@@ -147,13 +152,13 @@ function MultiblockCraftingAPI.executeMechanicalCrafterRecipe(recipe, inputPerip
 
   local input = peripheral.wrap(inputPeripheral)
   if not input then error("Invalid input peripheral") end
-  if not peripheral.hasType(inputPeripheral, "meBridge") then
+  if not peripheral.hasType(inputPeripheral, "meBridge") then   ---@diagnostic disable-line param-type-mismatch
     error("Only ME Bridge input is supported")
   end
 
   local allOk = true
   for crafter, entry in pairs(recipe.peripherals) do
-    local result = input.exportItemToPeripheral({ name = entry.itemname }, crafter)
+    local result = input.exportItemToPeripheral({ name = entry.itemname }, crafter)     ---@diagnostic disable-line param-type-mismatch
     if result == 0 then
       print("Failed to provide item to " .. crafter .. ": " .. entry.itemname)
       allOk = false
@@ -184,10 +189,10 @@ function MultiblockCraftingAPI.executeEnchantingApparatusRecipe(recipe, meBridge
   local finalPeripheral = nil
 
   for name, item in pairs(recipe.peripherals) do
-    if peripheral.hasType(name, "ars_nouveau:enchanting_apparatus") then
+    if peripheral.hasType(name, "ars_nouveau:enchanting_apparatus") then    ---@diagnostic disable-line param-type-mismatch
       finalPeripheral = name -- Store to export last
     else
-      local count = input.exportItemToPeripheral({ name = item.itemname }, name)
+      local count = input.exportItemToPeripheral({ name = item.itemname }, name)    ---@diagnostic disable-line param-type-mismatch
       if count == 0 then
         print("Missing item for " .. name)
         return
@@ -198,7 +203,7 @@ function MultiblockCraftingAPI.executeEnchantingApparatusRecipe(recipe, meBridge
   -- Export the final item last to start the crafting
   if finalPeripheral and recipe.peripherals[finalPeripheral] then
     sleep(0.5) -- slight delay to ensure all pedestal items are placed
-    input.exportItemToPeripheral({ name = recipe.peripherals[finalPeripheral].itemname }, finalPeripheral)
+    input.exportItemToPeripheral({ name = recipe.peripherals[finalPeripheral].itemname }, finalPeripheral)      ---@diagnostic disable-line undefined-field
   else
     error("No enchanting apparatus item found in recipe")
   end
