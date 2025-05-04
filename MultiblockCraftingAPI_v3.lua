@@ -2,7 +2,11 @@
 
 local MultiblockCraftingAPI = {}
 
-MultiblockCraftingAPI.VERSION = "3.1"
+-- Version (major.minor.patch)
+-- major - not compatible
+-- minor - features added
+-- patch - no changes to API
+MultiblockCraftingAPI.VERSION = "3.1.0"
 
 -- ENUM FOR MULTIBLOCK TYPES
 ---@enum MultiblockType
@@ -22,6 +26,26 @@ function MultiblockCraftingAPI.ItemDetail(itemDetail)
     count = itemDetail.count,
     tags = itemDetail.tags,
   }
+end
+
+---Compare version numbers (semver style)
+---This checks if the recipe version is at most an older minor version apart from API version
+---@param recipeVersion string Version to be checked against
+---@return boolean isMainVersionSame Returns whenever versions should be compatible
+function MultiblockCraftingAPI.getVersionCompatability(recipeVersion)
+  if recipeVersion == MultiblockCraftingAPI.VERSION then return true end
+  local function parseVersion(version)
+    -- Remove leading "v" if present, then split by dots
+    local clean = version:gsub("^v", "")
+    local major, minor, patch = clean:match("^(%d+)%.?(%d*)%.?(%d*)$")
+    return tonumber(major), tonumber(minor) or 0, tonumber(patch) or 0
+  end
+  
+  local majorAPI, minorAPI, _ = parseVersion(MultiblockCraftingAPI.VERSION)
+  local majorRpe, minorRpe, _ = parseVersion(recipeVersion)
+
+  return majorAPI==majorRpe and minorAPI>=minorRpe
+
 end
 
 -- MULTIBLOCK RECIPE CLASS
@@ -158,9 +182,9 @@ function MultiblockCraftingAPI.executeMechanicalCrafterRecipe(recipe, inputPerip
 
   local allOk = true
   for crafter, entry in pairs(recipe.peripherals) do
-    local result = input.exportItemToPeripheral({ name = entry.itemname }, crafter)     ---@diagnostic disable-line param-type-mismatch
-    if result == 0 then
-      print("Failed to provide item to " .. crafter .. ": " .. entry.itemname)
+    local number = input.exportItemToPeripheral({ name = entry.itemname }, crafter)     ---@diagnostic disable-line param-type-mismatch
+    if number == 0 then
+      error("Failed to provide item to " .. crafter .. ": " .. entry.itemname)
       allOk = false
     end
   end
@@ -194,7 +218,7 @@ function MultiblockCraftingAPI.executeEnchantingApparatusRecipe(recipe, meBridge
     else
       local count = input.exportItemToPeripheral({ name = item.itemname }, name)    ---@diagnostic disable-line param-type-mismatch
       if count == 0 then
-        print("Missing item for " .. name)
+        error("Missing item for " .. name)
         return
       end
     end
@@ -216,8 +240,25 @@ function MultiblockCraftingAPI.executeEnchantingApparatusRecipe(recipe, meBridge
   end
 end
 
+---Checks if enough items are available
+---@param recipe MultiblockRecipe
+---@param meBridge string
+function MultiblockCraftingAPI.precheckItemList(recipe, meBridge)
+  local neededItems = {}
+  for _, itemDetails in pairs(recipe.peripherals) do
+    neededItems[itemDetails.itemname] = (neededItems[itemDetails.itemname] or 0) + 1
+  end
 
+  for itemname, neededAmount in pairs(neededItems) do
+    local meItemDetail = meBridge.getItem({name=itemname})    ---@diagnostic disable-line undefined-field
+    local availableAmount = (meItemDetail and meItemDetail.amount) or 0
 
+    if availableAmount < neededAmount then
+      return false
+    end
+  end
 
+  return true
+end
 
 return MultiblockCraftingAPI
